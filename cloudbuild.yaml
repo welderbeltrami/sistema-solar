@@ -1,0 +1,52 @@
+steps:
+  # Build Java service
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/solar-java', '.']
+    dir: '.'
+
+  # Build Python service
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/solar-python', './python_service']
+    dir: '.'
+
+  # Push Java image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/solar-java']
+
+  # Push Python image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/solar-python']
+
+  # Deploy Java service
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'solar-java'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/solar-java'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+
+  # Deploy Python service
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'solar-python'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/solar-python'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+
+images:
+  - 'gcr.io/$PROJECT_ID/solar-java'
+  - 'gcr.io/$PROJECT_ID/solar-python'
