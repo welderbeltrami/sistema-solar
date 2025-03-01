@@ -6,83 +6,60 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const cep = document.getElementById('cep').value.replace(/\D/g, '');
-        const consumo = document.getElementById('consumo').value;
-
-        if (cep.length !== 8) {
-            alert('Por favor, digite um CEP válido');
-            return;
-        }
-
-        if (consumo <= 0) {
-            alert('Por favor, digite um consumo válido');
-            return;
-        }
-
+        const cep = document.getElementById('cep').value;
+        const consumoMensalKwh = document.getElementById('consumo').value;
+        const tipoTelhado = document.getElementById('tipoTelhado').value;
+        
         try {
-            const response = await fetch(`/api/calculo-solar/calcular?cep=${cep}&consumoMensalKwh=${consumo}`);
+            // Fazer o cálculo solar
+            const response = await fetch(`https://api.solarbeltrami.com.br/api/calculo-solar/calcular?cep=${cep}&consumoMensalKwh=${consumoMensalKwh}&tipoTelhado=${tipoTelhado}`);
             const data = await response.json();
-
-            // Dados básicos do sistema
-            document.getElementById('potenciaSistema').textContent = `${data.potenciaSistemaKw.toFixed(2)} kW`;
-            document.getElementById('potenciaInversor').textContent = `${data.potenciaInversorKw.toFixed(2)} kW`;
-            document.getElementById('numeroPlacas').textContent = `${data.numeroPlacas} placas de ${data.potenciaPlacaW}W`;
-            document.getElementById('horasSolPico').textContent = `${data.horasSolPico.toFixed(1)} horas/dia`;
-
-            // Limpar tabelas existentes
-            document.getElementById('tabelaInversores').innerHTML = '';
-            document.getElementById('tabelaPlacas').innerHTML = '';
-            document.getElementById('tabelaOutros').innerHTML = '';
-
-            // Preencher tabela de inversores
-            data.inversores.forEach(inversor => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${inversor.marca}</td>
-                    <td>${inversor.modelo}</td>
-                    <td>${inversor.potencia.toFixed(1)} kW</td>
-                    <td>R$ ${inversor.preco.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+            
+            if (data.error) {
+                alert('Erro ao calcular: ' + data.error);
+                return;
+            }
+            
+            // Atualizar a interface com os resultados
+            document.getElementById('potenciaSistema').textContent = data.potenciaSistemaKw.toFixed(2);
+            document.getElementById('numeroPlacas').textContent = data.numeroPlacas;
+            document.getElementById('potenciaInversor').textContent = data.potenciaInversorKw.toFixed(2);
+            document.getElementById('producaoMensal').textContent = (data.potenciaSistemaKw * data.horasSolPico * 30 * (1 - data.perdaSistema)).toFixed(2);
+            document.getElementById('economiaAnual').textContent = (data.potenciaSistemaKw * data.horasSolPico * 365 * (1 - data.perdaSistema) * 0.8).toFixed(2);
+            
+            // Buscar kits recomendados
+            const kitsResponse = await fetch(`https://api.solarbeltrami.com.br/api/kits-solares/buscar?potenciaKw=${data.potenciaSistemaKw}&tipoTelhado=${tipoTelhado}`);
+            const kitsData = await kitsResponse.json();
+            
+            // Mostrar kits recomendados
+            const listaKits = document.getElementById('listaKits');
+            listaKits.innerHTML = '';
+            
+            kitsData.forEach(kit => {
+                const kitElement = document.createElement('div');
+                kitElement.className = 'col-md-4 mb-3';
+                kitElement.innerHTML = `
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">${kit.title}</h5>
+                            <p class="card-text">
+                                <strong>Potência:</strong> ${kit.power} kW<br>
+                                <strong>Preço:</strong> R$ ${kit.price.toFixed(2)}<br>
+                                <strong>Score:</strong> ${(kit.score * 100).toFixed(1)}%
+                            </p>
+                            <a href="${kit.url}" target="_blank" class="btn btn-primary">Ver Detalhes</a>
+                        </div>
+                    </div>
                 `;
-                document.getElementById('tabelaInversores').appendChild(row);
+                listaKits.appendChild(kitElement);
             });
-
-            // Preencher tabela de placas
-            data.placas.forEach(placa => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${placa.marca}</td>
-                    <td>${placa.modelo}</td>
-                    <td>${placa.potencia}W</td>
-                    <td>R$ ${placa.preco.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                `;
-                document.getElementById('tabelaPlacas').appendChild(row);
-            });
-
-            // Preencher tabela de outros equipamentos
-            const rowCabos = document.createElement('tr');
-            rowCabos.innerHTML = `
-                <td>Cabos</td>
-                <td>${data.cabos.modelo}</td>
-                <td>R$ ${data.cabos.preco.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-            `;
-            document.getElementById('tabelaOutros').appendChild(rowCabos);
-
-            const rowEstrutura = document.createElement('tr');
-            rowEstrutura.innerHTML = `
-                <td>Estrutura</td>
-                <td>${data.estrutura.modelo}</td>
-                <td>R$ ${data.estrutura.preco.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-            `;
-            document.getElementById('tabelaOutros').appendChild(rowEstrutura);
-
-            // Atualizar preço total
-            document.getElementById('precoTotal').textContent = 
-                `R$ ${data.precoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-
+            
+            // Mostrar seção de resultados
             resultado.style.display = 'block';
+            
         } catch (error) {
-            alert('Erro ao realizar o cálculo. Por favor, tente novamente.');
             console.error('Erro:', error);
+            alert('Erro ao processar sua solicitação. Por favor, tente novamente.');
         }
     });
 
