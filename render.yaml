@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: solar-java
+    env: docker
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/*.jar
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: PYTHON_SERVICE_URL
+        fromService:
+          name: solar-python
+          type: web
+          property: host
+
+  - type: web
+    name: solar-python
+    env: docker
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    rootDir: python_service
+    envVars:
+      - key: PORT
+        value: 5000
