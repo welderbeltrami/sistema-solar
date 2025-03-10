@@ -1,13 +1,13 @@
 services:
   - type: web
-    name: solar-java
+    name: sistema-solar
     env: java
     plan: free
     region: oregon
-    buildCommand: ./mvnw package -DskipTests
-    startCommand: java -jar target/*.jar
+    buildCommand: chmod +x mvnw && ./mvnw package -DskipTests
+    startCommand: java -jar target/sistema-0.0.1-SNAPSHOT.jar
     envVars:
-      - key: SPRING_PROFILES_ACTIVE
-        value: prod
       - key: PORT
         value: 8080
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
